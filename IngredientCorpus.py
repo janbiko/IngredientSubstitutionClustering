@@ -99,6 +99,7 @@ Homework 4: This assignment is ment to provide a continued review of (or further
 """
 
 
+
 class IngredientCorpus:
 
     stopwords = ["crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
