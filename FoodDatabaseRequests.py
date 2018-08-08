@@ -1,5 +1,8 @@
 import requests
 import json
+import csv
+import pickle
+from threading import Timer
 
 class FoodDatabaseRequests:
     def __init__(self):
@@ -27,6 +30,9 @@ class FoodDatabaseRequests:
         request_url = self.url + self.search_url + "&q=" + ingredient
         response = requests.post(request_url)
         parsed_response =json.loads(response.text)
+        print(parsed_response)
+        if "errors" in parsed_response:
+            return 0
         ndbno = parsed_response["list"]["item"][0]["ndbno"]
         return self.getNutritionValues(ndbno, ingredient)
 
@@ -36,7 +42,6 @@ class FoodDatabaseRequests:
         response = requests.post(request_url)
         parsed_response =json.loads(response.text)
         nutrients = parsed_response["foods"][0]["food"]["nutrients"]
-        print(parsed_response)
         saturated_fat, sodium, energy, sugar = 0.0, 0.0, 0.0, 0.0
         for nutrient in nutrients:
             name = nutrient["name"]
@@ -49,7 +54,6 @@ class FoodDatabaseRequests:
                 sodium = value
             elif name == "Fatty acids, total saturated":
                 saturated_fat = value
-        print(saturated_fat, sodium, energy, sugar)
 
         score = 0
         for i in range(len(self.fatLevels)):
@@ -65,9 +69,29 @@ class FoodDatabaseRequests:
         score /= 4
         return {ingredient: score}
 
+    def parseCsvFile(self, filename):
+        with open(filename) as f:
+            reader = csv.reader(f)
+            return list(reader)[0]
 
+
+def doRequests(index):
+    ingScoreList = []
+    for i in range(20):
+        ingredient = foodRequest.getIngredientDbNumber(ingList[i])
+        if ingredient == 0: continue
+        ingScoreList.append(ingredient)
+    pickle.dump(ingScoreList, open("ingredientScoreList.p", "wb"))
+
+    ingScoreList = []
+    ingScoreList = pickle.load(open("ingredientScoreList.p", "rb"))
+    print(ingScoreList)
 
 if __name__=="__main__":
     foodRequest = FoodDatabaseRequests()
-    ingScore = foodRequest.getIngredientDbNumber("fat")
-    print(ingScore)
+    #ingScore = foodRequest.getIngredientDbNumber("fat")
+    ingList = foodRequest.parseCsvFile("uniqueIngredients.csv")
+    index = 0
+    t = Timer(3600, doRequests(index))
+
+
