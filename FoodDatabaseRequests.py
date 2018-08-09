@@ -2,7 +2,8 @@ import requests
 import json
 import csv
 import pickle
-from threading import Timer
+import time
+
 
 class FoodDatabaseRequests:
     def __init__(self):
@@ -10,7 +11,7 @@ class FoodDatabaseRequests:
         self.api_key2 = "Ss3J1M1phqRHb9EsOqRaeX9kRLMckI7all1NKb8W"
         self.url = "https://api.nal.usda.gov/ndb"
         self.search_url = "/search/?format=json&ds=Standard%20Reference&sort=r&max=1&offset=0" \
-                   "&api_key=" + self.api_key
+                          "&api_key=" + self.api_key
         self.nutrition_url = "/V2/reports?type=b&format=json&api_key=" + self.api_key
         self.energyLevels = []
         self.fatLevels = []
@@ -20,34 +21,32 @@ class FoodDatabaseRequests:
 
     def initNutritionLevelArrays(self):
         for i in range(10):
-            self.energyLevels.append(335*(i+1))
-            self.fatLevels.append(i+1)
-            self.sugarLevels.append(4.5*(i+1))
-            self.sodiumLevels.append(90*(i+1))
-
+            self.energyLevels.append(335 * (i + 1))
+            self.fatLevels.append(i + 1)
+            self.sugarLevels.append(4.5 * (i + 1))
+            self.sodiumLevels.append(90 * (i + 1))
 
     def getIngredientDbNumber(self, ingredient):
         request_url = self.url + self.search_url + "&q=" + ingredient
         response = requests.post(request_url)
-        parsed_response =json.loads(response.text)
-        print(parsed_response)
+        parsed_response = json.loads(response.text)
+        # print(parsed_response)
         if "errors" in parsed_response:
             return 0
         ndbno = parsed_response["list"]["item"][0]["ndbno"]
         return self.getNutritionValues(ndbno, ingredient)
 
-
     def getNutritionValues(self, db_number, ingredient):
         request_url = self.url + self.nutrition_url + "&ndbno=" + db_number
         response = requests.post(request_url)
-        parsed_response =json.loads(response.text)
+        parsed_response = json.loads(response.text)
         nutrients = parsed_response["foods"][0]["food"]["nutrients"]
         saturated_fat, sodium, energy, sugar = 0.0, 0.0, 0.0, 0.0
         for nutrient in nutrients:
             name = nutrient["name"]
             value = float(nutrient["value"])
             if name == "Energy":
-                energy = value*4.1868
+                energy = value * 4.1868
             elif name == "Sugars, total":
                 sugar = value
             elif name == "Sodium, Na":
@@ -77,21 +76,25 @@ class FoodDatabaseRequests:
 
 def doRequests(index):
     ingScoreList = []
-    for i in range(20):
-        ingredient = foodRequest.getIngredientDbNumber(ingList[i])
-        if ingredient == 0: continue
-        ingScoreList.append(ingredient)
+    for i in range(index, index + 1000):
+        try:
+            ingredient = foodRequest.getIngredientDbNumber(ingList[i])
+            if ingredient == 0: continue
+            ingScoreList.append(ingredient)
+        except IndexError:
+            break
     pickle.dump(ingScoreList, open("ingredientScoreList.p", "wb"))
 
-    ingScoreList = []
     ingScoreList = pickle.load(open("ingredientScoreList.p", "rb"))
     print(ingScoreList)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     foodRequest = FoodDatabaseRequests()
-    #ingScore = foodRequest.getIngredientDbNumber("fat")
+    # ingScore = foodRequest.getIngredientDbNumber("fat")
     ingList = foodRequest.parseCsvFile("uniqueIngredients.csv")
     index = 0
-    t = Timer(3600, doRequests(index))
-
-
+    while index < 4000:
+        doRequests(index)
+        time.sleep(3600)
+        index += 1000
