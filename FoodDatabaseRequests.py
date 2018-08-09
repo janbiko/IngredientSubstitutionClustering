@@ -74,8 +74,11 @@ class FoodDatabaseRequests:
             return list(reader)[0]
 
 
+ingScoreList = []
+
+
 def doRequests(index):
-    ingScoreList = []
+    global ingScoreList
     for i in range(index, index + 1000):
         try:
             ingredient = foodRequest.getIngredientDbNumber(ingList[i])
@@ -83,8 +86,8 @@ def doRequests(index):
             ingScoreList.append(ingredient)
         except IndexError:
             break
-    pickle.dump(ingScoreList, open("ingredientScoreList.p", "wb"))
 
+    pickle.dump(ingScoreList, open("ingredientScoreList.p", "wb"))
     ingScoreList = pickle.load(open("ingredientScoreList.p", "rb"))
     print(ingScoreList)
 
