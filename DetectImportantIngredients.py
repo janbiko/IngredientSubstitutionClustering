@@ -26,7 +26,7 @@ class RecipeIngredients:
         self.recipeData = np.array(cur.fetchall(), dtype=object)
         print("Data acquired. \nProcessing data.")
         self.corpus = self.createCorpus()
-        self.importantIngredients = self.detectImportantIngredients()
+        # self.importantIngredients = self.detectImportantIngredients()
 
     def createCorpus(self):
         recipeDict = {}
@@ -63,8 +63,8 @@ class RecipeIngredients:
             if ingsDict[ingredient] > self.amountRecipesTreshold:
                 importantIngs.append(ingredient)
 
-        print(importantIngs)
-
-        return 0
+        return importantIngs
 
 a = RecipeIngredients("taco")
+b = a.detectImportantIngredients()
+print(b)
