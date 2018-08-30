@@ -1,6 +1,8 @@
 import numpy as np
 import mysql.connector as mysql
 import csv
+from gensim.corpora import Dictionary
+from gensim import models, similarities
 
 # Place student names and ID numbers here:
 # Jannik Bikowski, 1768542
@@ -99,7 +101,6 @@ Homework 4: This assignment is ment to provide a continued review of (or further
 """
 
 
-
 class IngredientCorpus:
 
     stopwords = ["crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
@@ -117,10 +118,9 @@ class IngredientCorpus:
                                LEFT JOIN parsed_ingredients pi ON pi.id = i.id
                                WHERE pi.name_after_processing IS NOT NULL LIMIT 100""")
         '''
-        cur.execute("""SELECT i.recipe_id, pi.name_after_processing
-                       FROM ingredients i
-                       LEFT JOIN parsed_ingredients pi ON pi.id = i.id
-                       WHERE pi.name_after_processing IS NOT NULL""")
+        cur.execute("""SELECT pri.recipe_id, pi.name_after_processing FROM `parsed_recipe_ingredients` pri JOIN
+parsed_ingredients pi on pri.parsed_ingredient_id = pi.id
+WHERE pi.name_after_processing != ''""")
 
         self.data = np.array(cur.fetchall(), dtype=object)
 
@@ -177,16 +177,38 @@ class IngredientCorpus:
         return list(recDict.values())
 
     def saveCorpus(self):
-        out = csv.writer(open('recipeCorpus.csv', 'w'), delimiter=',', quoting=csv.QUOTE_ALL)
-        out.writerow(self.corpus)
+        out = csv.writer(open('recipeCorpus.csv', 'w'), delimiter=',')
+        out.writerows(self.corpus)
 
     def saveTopKIngredients(self):
         out = csv.writer(open('topKIngredients.csv', 'w'), delimiter=',', quoting=csv.QUOTE_ALL)
         out.writerow(self.topKResults)
 
-a = IngredientCorpus(topK=1000)
-document = a.corpus[0]
-# print(document)
-# print(a.corpus)
-# a.saveCorpus()
-# a.saveTopKIngredients()
+if __name__=="__main__":
+    a = IngredientCorpus(topK=10000000)
+    #document = a.corpus[0]
+    a.saveCorpus()
+    recCorpus = []
+    with open("recipeCorpus.csv", mode="r") as f:
+        reader = csv.reader(f, )
+        recCorpus = list(reader)
+    print(recCorpus)
+
+
+    gensimDict = Dictionary(recCorpus)
+    recCorpusBow = [gensimDict.doc2bow(line) for line in recCorpus]
+    randomRecipe = recCorpusBow[100]
+    print(randomRecipe, recCorpus[100])
+    tfidfmodel = models.TfidfModel(recCorpusBow)
+    randomRecipeTfIdf = tfidfmodel[randomRecipe]
+
+    cosineSimModel = similarities.MatrixSimilarity(tfidfmodel[recCorpusBow])
+    similarDocs = cosineSimModel[randomRecipeTfIdf]
+    for i in range(1, 26):
+        print(recCorpus[similarDocs.argsort()[-i]])
+
+
+    # print(document)
+    # print(a.corpus)
+    # a.saveCorpus()
+    # a.saveTopKIngredients()
