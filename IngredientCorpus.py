@@ -1,8 +1,17 @@
 import numpy as np
 import mysql.connector as mysql
 import csv
+import pickle
+from nltk.cluster import KMeansClusterer
+import nltk
+import pprint
+from gensim.models import Word2Vec
+from gensim.models import FastText
 from gensim.corpora import Dictionary
 from gensim import models, similarities
+
+from sklearn import cluster
+from sklearn import metrics
 
 # Place student names and ID numbers here:
 # Jannik Bikowski, 1768542
@@ -185,30 +194,146 @@ WHERE pi.name_after_processing != ''""")
         out.writerow(self.topKResults)
 
 if __name__=="__main__":
-    a = IngredientCorpus(topK=10000000)
+    #a = IngredientCorpus(topK=10000000)
     #document = a.corpus[0]
-    a.saveCorpus()
+    #a.saveCorpus()
+
     recCorpus = []
     with open("recipeCorpus.csv", mode="r") as f:
         reader = csv.reader(f, )
         recCorpus = list(reader)
-    print(recCorpus)
+
+    #print(recCorpus)
 
 
-    gensimDict = Dictionary(recCorpus)
-    recCorpusBow = [gensimDict.doc2bow(line) for line in recCorpus]
-    randomRecipe = recCorpusBow[100]
+    #gensimDict = Dictionary(recCorpus)
+    #recCorpusBow = [gensimDict.doc2bow(line) for line in recCorpus]
+    #pickle.dump(recCorpusBow, open("recCorpusBow.p", "wb"))
+    """randomRecipe = recCorpusBow[100]
     print(randomRecipe, recCorpus[100])
     tfidfmodel = models.TfidfModel(recCorpusBow)
+    #ldaModel = models.LdaModel(recCorpusBow, 100)
     randomRecipeTfIdf = tfidfmodel[randomRecipe]
+    #randomRecipeLda = ldaModel[randomRecipe]
 
-    cosineSimModel = similarities.MatrixSimilarity(tfidfmodel[recCorpusBow])
+    #cosineSimModel = similarities.MatrixSimilarity(tfidfmodel[recCorpusBow])
+
+    #cosineSimModel.save(open("cosineModel.txt", "wb"))
+    tfidfmodel.save(open("tfidf.txt", "wb"))
+
+    cosineSimModel = similarities.MatrixSimilarity.load("cosineModel.txt")
+    #ldaCosineModel = similarities.MatrixSimilarity(ldaModel[recCorpusBow])
     similarDocs = cosineSimModel[randomRecipeTfIdf]
+    #pickle.dump(similarDocs, open("similarDocs.p", "wb"))
+
+    #similarDocsLda = ldaCosineModel[randomRecipeLda]
+
+    #similarDocs = pickle.load(open("similarDocs.p", "rb"))
+    similarDocs = similarDocs.argsort()
     for i in range(1, 26):
-        print(recCorpus[similarDocs.argsort()[-i]])
+        print(recCorpus[similarDocs[-i]])
+
+"""
+    cosineSimModel = similarities.MatrixSimilarity.load("cosineModel.txt")
+    tfidfModel = models.TfidfModel.load("tfidf.txt")
+    recCorpusBow = pickle.load(open("recCorpusBow.p","rb"))
+
+    usedRecipesDict = {}
+    diff_ings_list = []
+    """for i in range(len(recCorpus[:1000])):
+        recipe = recCorpusBow[i]
+        tfidfRecipe = tfidfModel[recipe]
+        similarDocs = cosineSimModel[tfidfRecipe].argsort()
+        #print("\n\n")
+        #print(recCorpus[i])
+        #print("\n\n")
+
+        for j in range(2, 27):
+            #print(recCorpus[similarDocs[-j]])
+            different_ings = list(set(recCorpus[i]) - set(recCorpus[similarDocs[-j]]))
+            different_ings.extend(list(set(recCorpus[similarDocs[-j]]) - set(recCorpus[i])))
+            print(different_ings)
+            #print(different_ings)
+            if len(different_ings) > 1:
+                diff_ings_list.append(different_ings)
+
+    print(len(diff_ings_list))
+    pickle.dump(diff_ings_list, open("differentIngsList.p", "wb"))
+    """
+    diff_ings_list = pickle.load(open("differentIngsList.p", "rb"))
+    #model = Word2Vec(diff_ings_list, min_count=35)
+    model = FastText(diff_ings_list, size=200, window=5, min_count=10, workers=8, sg=1)
+    #model.train(diff_ings_list, total_examples=len(diff_ings_list), epochs=10)
+    print(model.wv.most_similar("cream"))
+    X = model[model.wv.vocab]
+    print(len(X))
+
+    NUM_CLUSTERS = 100
+    kclusterer = KMeansClusterer(NUM_CLUSTERS, distance=nltk.cluster.util.cosine_distance, repeats=25, avoid_empty_clusters=True)
+    assigned_clusters = kclusterer.cluster(X, assign_clusters=True)
+    print(assigned_clusters)
+
+    words = list(model.wv.vocab)
+    clusters = {}
+    for i, word in enumerate(words):
+        print(word + ":" + str(assigned_clusters[i]))
+        if str(assigned_clusters[i]) not in clusters:
+            clusters[str(assigned_clusters[i])] = []
+        clusters[str(assigned_clusters[i])].append(word)
+    print(clusters)
+
+
+    """
+    kmeans = cluster.KMeans(n_clusters=100)
+    kmeans.fit(X)
+
+    labels = kmeans.labels_
+    centroids = kmeans.cluster_centers_
+
+    print("Cluster id labels for inputted data")
+    print(labels)
+    print("Centroids data")
+    print(centroids)
+
+    print(
+        "Score (Opposite of the value of X on the K-means objective which is Sum of distances of samples to their closest cluster center):")
+    print(kmeans.score(X))
+
+    silhouette_score = metrics.silhouette_score(X, labels, metric='euclidean')
+
+    print("Silhouette_score: ")
+    print(silhouette_score)
+    
+    #print(model.most_similar(positive=["tomato"], negative=[], topn=2))
+    diff_ings_dict = Dictionary(diff_ings_list)
+    #print([[key,diff_ings_dict.get(key)] for key in diff_ings_dict.keys()])
+    diff_ings_corpus = [diff_ings_dict.doc2bow(text) for text in diff_ings_list]
+    #print(diff_ings_corpus)
+    #ldaIngs = models.LdaModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=1000)
+    lsiIngs = models.LsiModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=100)
+    #print(recCorpus[1])
+    #pprint.pprint(ldaIngs.show_topics())
+    pprint.pprint(lsiIngs.show_topics())
+    index, prob = ldaIngs.show_topic(0)[0]
+    #print(index, prob)
+    #print(diff_ings_dict.get(index))
+    #print(diff_ings_corpus[int(index)])
+    #print(ldaIngs[recCorpusBow[1]])
+    
+    """
+
+
+
+    #print("\n\n")
+    #for i in range(1, 26):
+    #    print(recCorpus[similarDocsLda.argsort()[-i]])
 
 
     # print(document)
     # print(a.corpus)
     # a.saveCorpus()
     # a.saveTopKIngredients()
+
+
+
+
