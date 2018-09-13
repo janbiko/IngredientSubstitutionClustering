@@ -234,33 +234,58 @@ if __name__=="__main__":
         print(recCorpus[similarDocs[-i]])
 
 """
+
+    """
     cosineSimModel = similarities.MatrixSimilarity.load("cosineModel.txt")
     tfidfModel = models.TfidfModel.load("tfidf.txt")
-    recCorpusBow = pickle.load(open("recCorpusBow.p","rb"))
+    recCorpusBow = pickle.load(open("recCorpusBow.p", "rb"))
+    index = 0
+    while index < len(recCorpus):
+        usedRecipesDict = {}
+        diff_ings_list = []
+        dataProcessed = 0
+        for i in range(len(recCorpus[index:index+10000])):
+            try:
+                recipe = recCorpusBow[i]
+                tfidfRecipe = tfidfModel[recipe]
+                similarDocs = cosineSimModel[tfidfRecipe].argsort()
+                #print("\n\n")
+                #print(recCorpus[i])
+                #print("\n\n")
 
-    usedRecipesDict = {}
+                for j in range(2, 27):
+                    #print(recCorpus[similarDocs[-j]])
+                    different_ings = list(set(recCorpus[i]) - set(recCorpus[similarDocs[-j]]))
+                    different_ings.extend(list(set(recCorpus[similarDocs[-j]]) - set(recCorpus[i])))
+                    #print(different_ings)
+                    #print(different_ings)
+                    if len(different_ings) > 1:
+                        diff_ings_list.append(different_ings)
+            except IndexError:
+                break
+
+            dataProcessed += 1
+            print("\rProcessed data:", dataProcessed, "/", 10000, end="", flush=True)
+
+        pickle.dump(diff_ings_list, open("differentIngsList" + str(index) + ".p", "wb"))
+        index += 10000
+        if index >= len(recCorpus):
+            index = len(recCorpus) - 1
+
+
+    #print(len(diff_ings_list))
+    #pickle.dump(diff_ings_list, open("differentIngsList.p", "wb"))
+    """
+
+
     diff_ings_list = []
-    """for i in range(len(recCorpus[:1000])):
-        recipe = recCorpusBow[i]
-        tfidfRecipe = tfidfModel[recipe]
-        similarDocs = cosineSimModel[tfidfRecipe].argsort()
-        #print("\n\n")
-        #print(recCorpus[i])
-        #print("\n\n")
+    for i in range(0, 250000, 10000):
+        tempList = pickle.load(open("differentIngs25/differentIngsList" + str(i) + ".p", "rb"))
+        diff_ings_list.extend(tempList)
 
-        for j in range(2, 27):
-            #print(recCorpus[similarDocs[-j]])
-            different_ings = list(set(recCorpus[i]) - set(recCorpus[similarDocs[-j]]))
-            different_ings.extend(list(set(recCorpus[similarDocs[-j]]) - set(recCorpus[i])))
-            print(different_ings)
-            #print(different_ings)
-            if len(different_ings) > 1:
-                diff_ings_list.append(different_ings)
 
     print(len(diff_ings_list))
-    pickle.dump(diff_ings_list, open("differentIngsList.p", "wb"))
-    """
-    diff_ings_list = pickle.load(open("differentIngsList.p", "rb"))
+
     #model = Word2Vec(diff_ings_list, min_count=35)
     model = FastText(diff_ings_list, size=200, window=5, min_count=10, workers=8, sg=1)
     #model.train(diff_ings_list, total_examples=len(diff_ings_list), epochs=10)
