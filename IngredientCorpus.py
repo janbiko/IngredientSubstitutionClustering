@@ -244,7 +244,9 @@ if __name__=="__main__":
         usedRecipesDict = {}
         diff_ings_list = []
         dataProcessed = 0
-        for i in range(len(recCorpus[index:index+10000])):
+        for i in range(index, index+10000):
+            #print(index, i)
+
             try:
                 recipe = recCorpusBow[i]
                 tfidfRecipe = tfidfModel[recipe]
@@ -278,21 +280,35 @@ if __name__=="__main__":
     """
 
 
+
     diff_ings_list = []
+    picklesLoaded = 0
     for i in range(0, 250000, 10000):
+        print("\rPickles loaded:", picklesLoaded, "/", 24, end="", flush=True)
+        picklesLoaded += 1
         tempList = pickle.load(open("differentIngs25/differentIngsList" + str(i) + ".p", "rb"))
         diff_ings_list.extend(tempList)
 
 
-    print(len(diff_ings_list))
+    #print(len(diff_ings_list))
+
+
+
 
     #model = Word2Vec(diff_ings_list, min_count=35)
-    model = FastText(diff_ings_list, size=200, window=5, min_count=10, workers=8, sg=1)
+    model = FastText(diff_ings_list, size=250, window=5, min_count=10, workers=8, sg=1)
     #model.train(diff_ings_list, total_examples=len(diff_ings_list), epochs=10)
     print(model.wv.most_similar("cream"))
+
+    print(model.wv.most_similar("bacon"))
+    print(model.wv.most_similar("cucumber"))
+    print(model.wv.most_similar("bread"))
+
     X = model[model.wv.vocab]
     print(len(X))
+    
 
+    """
     NUM_CLUSTERS = 100
     kclusterer = KMeansClusterer(NUM_CLUSTERS, distance=nltk.cluster.util.cosine_distance, repeats=25, avoid_empty_clusters=True)
     assigned_clusters = kclusterer.cluster(X, assign_clusters=True)
@@ -306,7 +322,7 @@ if __name__=="__main__":
             clusters[str(assigned_clusters[i])] = []
         clusters[str(assigned_clusters[i])].append(word)
     print(clusters)
-
+    """
 
     """
     kmeans = cluster.KMeans(n_clusters=100)
@@ -330,16 +346,18 @@ if __name__=="__main__":
     print(silhouette_score)
     
     #print(model.most_similar(positive=["tomato"], negative=[], topn=2))
+    """
+    """
     diff_ings_dict = Dictionary(diff_ings_list)
     #print([[key,diff_ings_dict.get(key)] for key in diff_ings_dict.keys()])
     diff_ings_corpus = [diff_ings_dict.doc2bow(text) for text in diff_ings_list]
     #print(diff_ings_corpus)
-    #ldaIngs = models.LdaModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=1000)
-    lsiIngs = models.LsiModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=100)
+    ldaIngs = models.LdaModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=250)
+    #lsiIngs = models.LsiModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=250)
     #print(recCorpus[1])
-    #pprint.pprint(ldaIngs.show_topics())
-    pprint.pprint(lsiIngs.show_topics())
-    index, prob = ldaIngs.show_topic(0)[0]
+    pprint.pprint(ldaIngs.show_topics())
+    #pprint.pprint(lsiIngs.show_topics())
+    #index, prob = ldaIngs.show_topic(0)[0]
     #print(index, prob)
     #print(diff_ings_dict.get(index))
     #print(diff_ings_corpus[int(index)])
