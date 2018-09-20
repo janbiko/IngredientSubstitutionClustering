@@ -1,6 +1,7 @@
 import numpy as np
 import mysql.connector as mysql
 import csv
+import re
 import pickle
 from nltk.cluster import KMeansClusterer
 import nltk
@@ -9,6 +10,9 @@ from gensim.models import Word2Vec
 from gensim.models import FastText
 from gensim.corpora import Dictionary
 from gensim import models, similarities
+import gensim
+
+import pyLDAvis
 
 from sklearn import cluster
 from sklearn import metrics
@@ -112,7 +116,8 @@ Homework 4: This assignment is ment to provide a continued review of (or further
 
 class IngredientCorpus:
 
-    stopwords = ["crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+    stopwords = ["grilled", "canned", "crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7",
+                 "8", "9", "0", "red", "green", "yellow", "fresh", "whole", "dried"]
 
     def __init__(self, topK=1000):
         con = mysql.connect(user='allrecipes',
@@ -127,9 +132,7 @@ class IngredientCorpus:
                                LEFT JOIN parsed_ingredients pi ON pi.id = i.id
                                WHERE pi.name_after_processing IS NOT NULL LIMIT 100""")
         '''
-        cur.execute("""SELECT pri.recipe_id, pi.name_after_processing FROM `parsed_recipe_ingredients` pri JOIN
-parsed_ingredients pi on pri.parsed_ingredient_id = pi.id
-WHERE pi.name_after_processing != ''""")
+        cur.execute("""SELECT pri.recipe_id, pi.name_after_processing FROM parsed_recipe_ingredients pri JOIN (SELECT DISTINCT name_after_processing, new_ingredient_id from parsed_ingredients) as pi ON pi.new_ingredient_id = pri.parsed_ingredient_id""")
 
         self.data = np.array(cur.fetchall(), dtype=object)
 
@@ -157,6 +160,7 @@ WHERE pi.name_after_processing != ''""")
             ingAsList = str(ingredient[1]).split(' ')
             ingAsList = [word for word in ingAsList if word not in self.stopwords]
             parsedIngredient = ' '.join(ingAsList)
+            parsedIngredient = re.sub('[0-9]*%', 'g', parsedIngredient)
 
             # save ingredient to recipe, if in top k results
             if parsedIngredient in self.topKResults:
@@ -186,6 +190,15 @@ WHERE pi.name_after_processing != ''""")
         return list(recDict.values())
 
     def saveCorpus(self):
+        print("Saving...")
+        for recipe in self.corpus:
+            for ingredient in recipe:
+                ingAsList = str(ingredient).split(' ')
+                ingAsList = [word for word in ingAsList if word not in self.stopwords]
+                parsedIngredient = ' '.join(ingAsList)
+                parsedIngredient = re.sub('[0-9]*%', 'g', parsedIngredient)
+                ingredient = parsedIngredient
+
         out = csv.writer(open('recipeCorpus.csv', 'w'), delimiter=',')
         out.writerows(self.corpus)
 
@@ -194,31 +207,43 @@ WHERE pi.name_after_processing != ''""")
         out.writerow(self.topKResults)
 
 if __name__=="__main__":
-    #a = IngredientCorpus(topK=10000000)
-    #document = a.corpus[0]
-    #a.saveCorpus()
+    a = IngredientCorpus(topK=1000000000)
+    document = a.corpus[0]
+    a.saveCorpus()
 
     recCorpus = []
     with open("recipeCorpus.csv", mode="r") as f:
         reader = csv.reader(f, )
         recCorpus = list(reader)
+    recCorpus = recCorpus[::2]
 
-    #print(recCorpus)
 
 
-    #gensimDict = Dictionary(recCorpus)
-    #recCorpusBow = [gensimDict.doc2bow(line) for line in recCorpus]
-    #pickle.dump(recCorpusBow, open("recCorpusBow.p", "wb"))
-    """randomRecipe = recCorpusBow[100]
-    print(randomRecipe, recCorpus[100])
+
+    count = 0
+    for recipe in recCorpus:
+        for ingredient in recipe:
+            if "salt" in ingredient:
+                count += 1
+
+    print(count)
+    print(len(recCorpus))
+
+
+    """
+    gensimDict = Dictionary(recCorpus)
+    recCorpusBow = [gensimDict.doc2bow(line) for line in recCorpus]
+    pickle.dump(recCorpusBow, open("recCorpusBow.p", "wb"))
+    #randomRecipe = recCorpusBow[100]
+    #print(randomRecipe, recCorpus[100])
     tfidfmodel = models.TfidfModel(recCorpusBow)
     #ldaModel = models.LdaModel(recCorpusBow, 100)
-    randomRecipeTfIdf = tfidfmodel[randomRecipe]
+    #randomRecipeTfIdf = tfidfmodel[randomRecipe]
     #randomRecipeLda = ldaModel[randomRecipe]
 
-    #cosineSimModel = similarities.MatrixSimilarity(tfidfmodel[recCorpusBow])
+    cosineSimModel = similarities.MatrixSimilarity(tfidfmodel[recCorpusBow])
 
-    #cosineSimModel.save(open("cosineModel.txt", "wb"))
+    cosineSimModel.save(open("cosineModel.txt", "wb"))
     tfidfmodel.save(open("tfidf.txt", "wb"))
 
     cosineSimModel = similarities.MatrixSimilarity.load("cosineModel.txt")
@@ -232,8 +257,7 @@ if __name__=="__main__":
     similarDocs = similarDocs.argsort()
     for i in range(1, 26):
         print(recCorpus[similarDocs[-i]])
-
-"""
+    """
 
     """
     cosineSimModel = similarities.MatrixSimilarity.load("cosineModel.txt")
@@ -274,29 +298,60 @@ if __name__=="__main__":
         if index >= len(recCorpus):
             index = len(recCorpus) - 1
 
-
+    """
     #print(len(diff_ings_list))
     #pickle.dump(diff_ings_list, open("differentIngsList.p", "wb"))
+
+
+
     """
-
-
-
     diff_ings_list = []
     picklesLoaded = 0
     for i in range(0, 250000, 10000):
         print("\rPickles loaded:", picklesLoaded, "/", 24, end="", flush=True)
         picklesLoaded += 1
-        tempList = pickle.load(open("differentIngs25/differentIngsList" + str(i) + ".p", "rb"))
+        tempList = pickle.load(open("differentIngs25top1000/differentIngsList" + str(i) + ".p", "rb"))
         diff_ings_list.extend(tempList)
+
+    count = 0
+    for recipe in diff_ings_list:
+        for ingredient in recipe:
+            if ingredient == "cream":
+                count += 1
+
+    print(count)
+
+    ings_list_parsed = []
+    ings_dict = {}
+    counter = 0
+    for sublist in diff_ings_list:
+        ing_string = ""
+        for ing in sublist:
+            ing = ing.replace(" ", "_")
+            if ing not in ings_dict.keys():
+                ings_dict[ing] = counter
+                counter += 1
+            ing_string += " " + ing
+        ings_list_parsed.append(ing_string)
+
+
+    from sklearn.feature_extraction.text import CountVectorizer
+
+    count_model = CountVectorizer(ngram_range=(1, 1))  # default unigram model
+    X = count_model.fit_transform(ings_list_parsed)
+    # X[X > 0] = 1 # run this line if you don't want extra within-text cooccurence (see below)
+    Xc = (X.T * X)  # this is co-occurrence matrix in sparse csr format
+    Xc.setdiag(0)  # sometimes you want to fill same word cooccurence to 0
+    print(Xc.todense())  # print out matrix in dense format
 
 
     #print(len(diff_ings_list))
+"""
 
 
-
-
+    """
     #model = Word2Vec(diff_ings_list, min_count=35)
-    model = FastText(diff_ings_list, size=250, window=5, min_count=10, workers=8, sg=1)
+    model = FastText(diff_ings_list, size=300, window=5, min_count=10, workers=8, sg=1)
     #model.train(diff_ings_list, total_examples=len(diff_ings_list), epochs=10)
     print(model.wv.most_similar("cream"))
 
@@ -306,10 +361,10 @@ if __name__=="__main__":
 
     X = model[model.wv.vocab]
     print(len(X))
-    
+    """
 
     """
-    NUM_CLUSTERS = 100
+    NUM_CLUSTERS = 200
     kclusterer = KMeansClusterer(NUM_CLUSTERS, distance=nltk.cluster.util.cosine_distance, repeats=25, avoid_empty_clusters=True)
     assigned_clusters = kclusterer.cluster(X, assign_clusters=True)
     print(assigned_clusters)
@@ -352,17 +407,16 @@ if __name__=="__main__":
     #print([[key,diff_ings_dict.get(key)] for key in diff_ings_dict.keys()])
     diff_ings_corpus = [diff_ings_dict.doc2bow(text) for text in diff_ings_list]
     #print(diff_ings_corpus)
-    ldaIngs = models.LdaModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=250)
-    #lsiIngs = models.LsiModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=250)
+    #ldaIngs = models.LdaModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=200)
+    lsiIngs = models.LsiModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=200)
     #print(recCorpus[1])
-    pprint.pprint(ldaIngs.show_topics())
-    #pprint.pprint(lsiIngs.show_topics())
+    #pprint.pprint(ldaIngs.show_topics())
+    pprint.pprint(lsiIngs.show_topics())
     #index, prob = ldaIngs.show_topic(0)[0]
     #print(index, prob)
     #print(diff_ings_dict.get(index))
     #print(diff_ings_corpus[int(index)])
     #print(ldaIngs[recCorpusBow[1]])
-    
     """
 
 
@@ -376,7 +430,3 @@ if __name__=="__main__":
     # print(a.corpus)
     # a.saveCorpus()
     # a.saveTopKIngredients()
-
-
-
-
