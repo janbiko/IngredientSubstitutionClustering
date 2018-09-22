@@ -42,5 +42,21 @@ class UniqueIngredients:
             out = csv.writer(open('uniqueIngredients.csv', 'w'), delimiter=',', quoting=csv.QUOTE_ALL)
             out.writerow(self.parsedUniqueIngredients)
 
-a = UniqueIngredients()
-a.getUniqueIngredients(saveData=True)
+
+if __name__ == '__main__':
+    #a = UniqueIngredients()
+    #a.getUniqueIngredients(saveData=True)
+
+    recCorpus = []
+    with open('recipeCorpus.csv') as f:
+        reader = csv.reader(f)
+        recCorpus = list(reader)[::2]
+
+    uniqueIngredients = []
+    for recipe in recCorpus:
+        for ingredient in recipe:
+            if ingredient not in uniqueIngredients:
+                uniqueIngredients.append(ingredient)
+
+    out = csv.writer(open('uniqueIngredients.csv', 'w'), delimiter=',', quoting=csv.QUOTE_ALL)
+    out.writerow(uniqueIngredients)
