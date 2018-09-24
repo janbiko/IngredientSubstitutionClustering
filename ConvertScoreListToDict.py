@@ -39,5 +39,5 @@ if __name__ == '__main__':
 
     pickle.dump(scoreDict, open("ingredientScoreList.p", "wb"))
     """
-    ingScoreList = pickle.load(open("ingredientScoreList.p", "rb"))
-    print(ingScoreList)
+    #ingScoreList = pickle.load(open("ingredientScoreList.p", "rb"))
+    #print(ingScoreList)
