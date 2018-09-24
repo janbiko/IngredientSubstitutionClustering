@@ -2,6 +2,8 @@ import mysql.connector as mysql
 import numpy as np
 import re
 import pickle
+import csv
+from gensim.models import FastText
 
 
 class IngredientSubstitution:
@@ -24,14 +26,16 @@ class IngredientSubstitution:
         cur.execute("""SELECT DISTINCT(pri.recipe_id), pi.name_after_processing FROM parsed_recipe_ingredients pri
                        JOIN parsed_ingredients pi ON pi.new_ingredient_id = pri.parsed_ingredient_id
                        WHERE pri.recipe_id LIKE {}""".format(recipeString))
+
         recipeData = np.array(cur.fetchall(), dtype=object)
-        #self.originalRecipe = [ings[1] for ings in recipeData]
-        #print("Original recipe:\n", self.originalRecipe, "\n")
-        #self.parsedRecipe = self.removeStopwords()
-        self.healthScoreList = pickle.load(open("ingredientScoreList.p", "rb"))
-        dicti = {'a mix': '5,5', 'active yeast': '1.25'}
-        print(dicti)
-        #self.recipeHealthDict = self.mapHealthScores()
+        self.originalRecipe = [ings[1] for ings in recipeData]
+        print("Original recipe:\n", self.originalRecipe, "\n")
+        self.parsedRecipe = self.removeStopwords()
+
+        self.healthScoreDict = pickle.load(open("ingredientScoreList.p", "rb"))
+        self.recipeHealthDict = self.mapHealthScores()
+
+        self.fastTextModel = pickle.load(open("fastTextModel.p", "rb"))
 
     def removeStopwords(self):
         parsedRecipe = []
@@ -43,17 +47,22 @@ class IngredientSubstitution:
             parsedIngredient = re.sub('[0-9]*%', 'g', parsedIngredient)
             parsedRecipe.append(parsedIngredient)
 
-        print("Recipe after stopword removal:\n", parsedRecipe)
+        print("Recipe after stopword removal:\n", parsedRecipe, "\n")
         return parsedRecipe
 
     def mapHealthScores(self):
         recDict = {}
         for ingredient in self.parsedRecipe:
             if ingredient not in recDict:
-                recDict[ingredient] = self.healthScoreList.get(ingredient)
+                recDict[ingredient] = self.healthScoreDict.get(ingredient)
 
-        print(recDict)
-        return 0
+        print("Ingredient health scores:\n", recDict, "\n")
+        return recDict
+
+    def findSubstitutions(self):
+        for ingredient in self.parsedRecipe:
+            print(ingredient, "substitutions: \n", self.fastTextModel.wv.most_similar(ingredient), "\n\n")
 
 if __name__ == '__main__':
     a = IngredientSubstitution("chicken-and-pumpkin-goulash")
+    a.findSubstitutions()

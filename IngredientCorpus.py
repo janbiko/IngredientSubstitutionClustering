@@ -147,6 +147,8 @@ class IngredientCorpus:
         print("Data acquired. \nProcessing data.")
         self.corpus = self.createCorpus(self.data)
 
+        print("DR IST SCHEISSE!!")
+
     def createCorpus(self, data, verbose=True):
         dataProcessed = 0
         lenData = len(data)
@@ -207,9 +209,9 @@ class IngredientCorpus:
         out.writerow(self.topKResults)
 
 if __name__=="__main__":
-    a = IngredientCorpus(topK=1000000000)
-    document = a.corpus[0]
-    a.saveCorpus()
+    #a = IngredientCorpus(topK=1000000000)
+    #document = a.corpus[0]
+    #a.saveCorpus()
 
     recCorpus = []
     with open("recipeCorpus.csv", mode="r") as f:
@@ -220,14 +222,6 @@ if __name__=="__main__":
 
 
 
-    count = 0
-    for recipe in recCorpus:
-        for ingredient in recipe:
-            if "salt" in ingredient:
-                count += 1
-
-    print(count)
-    print(len(recCorpus))
 
 
     """
@@ -245,7 +239,8 @@ if __name__=="__main__":
 
     cosineSimModel.save(open("cosineModel.txt", "wb"))
     tfidfmodel.save(open("tfidf.txt", "wb"))
-
+    """
+    """
     cosineSimModel = similarities.MatrixSimilarity.load("cosineModel.txt")
     #ldaCosineModel = similarities.MatrixSimilarity(ldaModel[recCorpusBow])
     similarDocs = cosineSimModel[randomRecipeTfIdf]
@@ -263,7 +258,7 @@ if __name__=="__main__":
     cosineSimModel = similarities.MatrixSimilarity.load("cosineModel.txt")
     tfidfModel = models.TfidfModel.load("tfidf.txt")
     recCorpusBow = pickle.load(open("recCorpusBow.p", "rb"))
-    index = 0
+    index = 10000
     while index < len(recCorpus):
         usedRecipesDict = {}
         diff_ings_list = []
@@ -279,7 +274,7 @@ if __name__=="__main__":
                 #print(recCorpus[i])
                 #print("\n\n")
 
-                for j in range(2, 27):
+                for j in range(2, 12):
                     #print(recCorpus[similarDocs[-j]])
                     different_ings = list(set(recCorpus[i]) - set(recCorpus[similarDocs[-j]]))
                     different_ings.extend(list(set(recCorpus[similarDocs[-j]]) - set(recCorpus[i])))
@@ -298,21 +293,27 @@ if __name__=="__main__":
         if index >= len(recCorpus):
             index = len(recCorpus) - 1
 
-    """
+
     #print(len(diff_ings_list))
     #pickle.dump(diff_ings_list, open("differentIngsList.p", "wb"))
-
-
-
     """
-    diff_ings_list = []
+
+
+
+
     picklesLoaded = 0
+    diff_ings_list = []
     for i in range(0, 250000, 10000):
         print("\rPickles loaded:", picklesLoaded, "/", 24, end="", flush=True)
         picklesLoaded += 1
-        tempList = pickle.load(open("differentIngs25top1000/differentIngsList" + str(i) + ".p", "rb"))
+        tempList = pickle.load(open("differentIngs10/differentIngsList" + str(i) + ".p", "rb"))
         diff_ings_list.extend(tempList)
 
+    model = FastText(diff_ings_list, size=200, iter=10, alpha=0.015, window=5, min_n=4, min_count=10, workers=8, sg=0,
+                     hs=1)
+    pickle.dump(model, open("fastTextModel.p", "wb"))
+
+    """
     count = 0
     for recipe in diff_ings_list:
         for ingredient in recipe:
@@ -347,23 +348,29 @@ if __name__=="__main__":
 
     #print(len(diff_ings_list))
 """
+"""
 
-
-    """
     #model = Word2Vec(diff_ings_list, min_count=35)
-    model = FastText(diff_ings_list, size=300, window=5, min_count=10, workers=8, sg=1)
+    model = FastText(diff_ings_list, size=200, iter=10,alpha=0.015, window=5,min_n=4, min_count=10, workers=8, sg=0, hs=1)
     #model.train(diff_ings_list, total_examples=len(diff_ings_list), epochs=10)
     print(model.wv.most_similar("cream"))
 
     print(model.wv.most_similar("bacon"))
     print(model.wv.most_similar("cucumber"))
     print(model.wv.most_similar("bread"))
+    print(model.wv.most_similar("rye bread"))
+    print(model.wv.most_similar("pork"))
+    print(model.wv.most_similar("ketchup"))
+    print(model.wv.most_similar("butter"))
+    print(model.wv.most_similar("tofu"))
+    print(model.wv.most_similar("honey"))
+    print(model.wv.most_similar("almonds"))
 
     X = model[model.wv.vocab]
     print(len(X))
     """
 
-    """
+"""
     NUM_CLUSTERS = 200
     kclusterer = KMeansClusterer(NUM_CLUSTERS, distance=nltk.cluster.util.cosine_distance, repeats=25, avoid_empty_clusters=True)
     assigned_clusters = kclusterer.cluster(X, assign_clusters=True)
@@ -379,7 +386,7 @@ if __name__=="__main__":
     print(clusters)
     """
 
-    """
+"""
     kmeans = cluster.KMeans(n_clusters=100)
     kmeans.fit(X)
 
@@ -402,13 +409,13 @@ if __name__=="__main__":
     
     #print(model.most_similar(positive=["tomato"], negative=[], topn=2))
     """
-    """
+"""
     diff_ings_dict = Dictionary(diff_ings_list)
     #print([[key,diff_ings_dict.get(key)] for key in diff_ings_dict.keys()])
     diff_ings_corpus = [diff_ings_dict.doc2bow(text) for text in diff_ings_list]
     #print(diff_ings_corpus)
     #ldaIngs = models.LdaModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=200)
-    lsiIngs = models.LsiModel(diff_ings_corpus, id2word=diff_ings_dict, num_topics=200)
+    lsiIngs = models.LsiModel(diff_ings_corpus,power_iters=10,extra_samples=5, id2word=diff_ings_dict, num_topics=200)
     #print(recCorpus[1])
     #pprint.pprint(ldaIngs.show_topics())
     pprint.pprint(lsiIngs.show_topics())
@@ -417,8 +424,8 @@ if __name__=="__main__":
     #print(diff_ings_dict.get(index))
     #print(diff_ings_corpus[int(index)])
     #print(ldaIngs[recCorpusBow[1]])
-    """
 
+"""
 
 
     #print("\n\n")
