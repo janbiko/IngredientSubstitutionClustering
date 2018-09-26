@@ -2,6 +2,7 @@ import mysql.connector as mysql
 import numpy as np
 import re
 import pickle
+import time
 import csv
 from gensim.models import FastText
 
@@ -13,7 +14,7 @@ class IngredientSubstitution:
     HOST = '132.199.138.79'
     DATABASE = 'allrecipes'
 
-    stopwords = ["grilled", "canned", "crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7",
+    stopwords = ["grilled", "canned", "ground", "crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7",
                  "8", "9", "0", "red", "green", "yellow", "fresh", "whole", "dried"]
 
     def __init__(self, recipe):
@@ -60,9 +61,25 @@ class IngredientSubstitution:
         return recDict
 
     def findSubstitutions(self):
+        sim_ing_scores = {}
         for ingredient in self.parsedRecipe:
             print(ingredient, "substitutions: \n", self.fastTextModel.wv.most_similar(ingredient), "\n\n")
+            most_similar = self.fastTextModel.wv.most_similar(ingredient)
+            sim_ing_scores[ingredient] = []
+            for sim_ing in most_similar[:5]:
+                health_score = self.healthScoreDict.get(sim_ing[0])
+                if (not health_score is None) and (health_score != '0.0'):
+                    sim_ing_scores[ingredient].append((sim_ing[0],health_score))
+        for ing in sim_ing_scores:
+            sim_ing_list = sim_ing_scores[ing]
+            if len(sim_ing_list) == 0: continue
+            print(ing," (", self.healthScoreDict.get(ing),")", ": ", min(sim_ing_list, key= lambda t:t[1]))
 
 if __name__ == '__main__':
+    starttime = time.time()
+    a = IngredientSubstitution("almond-butter")
     a = IngredientSubstitution("chicken-and-pumpkin-goulash")
+    a = IngredientSubstitution("easy-beef-goulash")
+    a = IngredientSubstitution("mommas-pasta-and-shrimp-salad")
     a.findSubstitutions()
+    print(time.time()-starttime)
