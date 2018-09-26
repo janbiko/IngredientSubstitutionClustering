@@ -18,6 +18,12 @@ class FoodDatabaseRequests:
         self.sugarLevels = []
         self.sodiumLevels = []
         self.initNutritionLevelArrays()
+        self.topKIngredients = self.importTopKIngredients()
+
+    def importTopKIngredients(self):
+        with open("topKIngredients.csv") as f:
+            reader = csv.reader(f)
+            return list(reader)[0]
 
     def initNutritionLevelArrays(self):
         for i in range(10):
@@ -26,15 +32,33 @@ class FoodDatabaseRequests:
             self.sugarLevels.append(4.5 * (i + 1))
             self.sodiumLevels.append(90 * (i + 1))
 
-    def getIngredientDbNumber(self, ingredient):
-        request_url = self.url + self.search_url + "&q=" + ingredient
+    def getIngredientDbNumber(self, ingredient, new_ing):
+        request_url = self.url + self.search_url + "&q=" + new_ing
         response = requests.post(request_url)
         parsed_response = json.loads(response.text)
         # print(parsed_response)
-        if "errors" in parsed_response:
-            return 0
+        if "errors" in parsed_response and ingredient == new_ing:
+            return self.getIngredientDbNumber(ingredient, self.getTopKAlternative(ingredient))
+        else:
+            if new_ing == "":
+                return {ingredient: 100}
         ndbno = parsed_response["list"]["item"][0]["ndbno"]
         return self.getNutritionValues(ndbno, ingredient)
+
+    def getTopKAlternative(self, ingredient):
+        ingAsList = []
+        if "-" in ingredient:
+            ingAsList = str(ingredient).split('-')
+        elif " " in ingredient:
+            ingAsList = str(ingredient).split(' ')
+        else:
+            return ""
+        newIngredient = ""
+        for word in list(reversed(ingAsList)):
+            if word in self.topKIngredients:
+                newIngredient = word
+                break
+        return newIngredient
 
     def getNutritionValues(self, db_number, ingredient):
         request_url = self.url + self.nutrition_url + "&ndbno=" + db_number
@@ -81,9 +105,10 @@ def doRequests(index):
     global ingScoreList
     for i in range(index, index + 1000):
         try:
-            ingredient = foodRequest.getIngredientDbNumber(ingList[i])
+            ingredient = foodRequest.getIngredientDbNumber(ingList[i], ingList[i])
             if ingredient == 0: continue
             ingScoreList.append(ingredient)
+            print(i)
         except IndexError:
             break
 
@@ -94,10 +119,10 @@ def doRequests(index):
 
 if __name__ == "__main__":
     foodRequest = FoodDatabaseRequests()
-    # ingScore = foodRequest.getIngredientDbNumber("fat")
-    ingList = foodRequest.parseCsvFile("uniqueIngredients.csv")
-    index = 0
-    while index < 4000:
-        doRequests(index)
-        time.sleep(3600)
-        index += 1000
+    print(foodRequest.getIngredientDbNumber("spice rub", "spice rub"))
+    #ingList = foodRequest.parseCsvFile("topKIngredients.csv")
+    #index = 0
+    #while index < 4000:
+    #    doRequests(index)
+    #    time.sleep(3600)
+    #    index += 1000
