@@ -12,8 +12,6 @@ from gensim.corpora import Dictionary
 from gensim import models, similarities
 import gensim
 
-import pyLDAvis
-
 from sklearn import cluster
 from sklearn import metrics
 
@@ -116,8 +114,8 @@ Homework 4: This assignment is ment to provide a continued review of (or further
 
 class IngredientCorpus:
 
-    stopwords = ["grilled", "canned", "crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7",
-                 "8", "9", "0", "red", "green", "yellow", "fresh", "whole", "dried"]
+    stopwords = ["grilled", "canned","ground", "raw", "baked", "cooked", "steamed", "crumb", "sliced", "chopped", "diced", "oz", "1", "2", "3", "4", "5", "6", "7",
+                 "8", "9", "0", "red", "green", "yellow", "fresh", "whole", "dried", "roasted", "processed", "lb"]
 
     def __init__(self, topK=1000):
         con = mysql.connect(user='allrecipes',
@@ -143,6 +141,16 @@ class IngredientCorpus:
         self.topKResults = np.array(cur.fetchall(), dtype=object)
         # only store ingredient names, not frequencies
         self.topKResults = [ings[0] for ings in self.topKResults]
+        parsed_top_list = []
+        for ing in self.topKResults:
+            ingAsList = str(ing).split(' ')
+            ingAsList = [word for word in ingAsList if word not in self.stopwords]
+            parsedIng = re.sub('[0-9]*%', 'g', ' '.join(ingAsList))
+            if parsedIng not in parsed_top_list:
+                parsed_top_list.append(parsedIng)
+        self.topKResults = parsed_top_list
+        print(self.topKResults)
+        print(len(self.topKResults))
 
         print("Data acquired. \nProcessing data.")
         self.corpus = self.createCorpus(self.data)
@@ -153,6 +161,7 @@ class IngredientCorpus:
         dataProcessed = 0
         lenData = len(data)
         recDict = {}
+        kick_count = 0
 
         for ingredient in data:
             if ingredient[0] not in recDict:
@@ -172,6 +181,7 @@ class IngredientCorpus:
                 parsedIngredient = [x for x in ingAsList if x in self.topKResults]
                 # skip ingredient, if not found in top k results
                 if len(parsedIngredient) == 0:
+                    kick_count += 1
                     '''
                     We decided to skip unpopular ingredients in order to avoid having too many ingredients in the
                     corpus, which only appear once. If too many ingredients are skipped, you can adjust the top k
@@ -189,6 +199,7 @@ class IngredientCorpus:
                 dataProcessed += 1
                 print("\rProcessed data:", dataProcessed, "/", lenData, end="", flush=True)
 
+        print(kick_count)
         return list(recDict.values())
 
     def saveCorpus(self):
@@ -209,15 +220,17 @@ class IngredientCorpus:
         out.writerow(self.topKResults)
 
 if __name__=="__main__":
-    #a = IngredientCorpus(topK=1000000000)
+    #a = IngredientCorpus(topK=1000)
     #document = a.corpus[0]
     #a.saveCorpus()
+    #a.saveTopKIngredients()
 
     recCorpus = []
     with open("recipeCorpus.csv", mode="r") as f:
         reader = csv.reader(f, )
         recCorpus = list(reader)
-    recCorpus = recCorpus[::2]
+    print(recCorpus)
+    print(len(recCorpus))
 
 
 
@@ -300,7 +313,7 @@ if __name__=="__main__":
 
 
 
-
+    """
     picklesLoaded = 0
     diff_ings_list = []
     for i in range(0, 250000, 10000):
@@ -312,7 +325,7 @@ if __name__=="__main__":
     model = FastText(diff_ings_list, size=200, iter=10, alpha=0.015, window=5, min_n=4, min_count=10, workers=8, sg=0,
                      hs=1)
     pickle.dump(model, open("fastTextModel.p", "wb"))
-
+    """
     """
     count = 0
     for recipe in diff_ings_list:
