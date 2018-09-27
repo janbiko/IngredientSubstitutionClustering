@@ -9,10 +9,11 @@ class FoodDatabaseRequests:
     def __init__(self):
         self.api_key = "99Pz4D0mHTP7g4GqR42iGU0di6X9Hq4ii0r3G9qb"
         self.api_key2 = "Ss3J1M1phqRHb9EsOqRaeX9kRLMckI7all1NKb8W"
+        self.api_key3 = "rM9G8Ypk14U2jeAzusY1cQvQKYIhABoAOQw2KcxY"
         self.url = "https://api.nal.usda.gov/ndb"
         self.search_url = "/search/?format=json&ds=Standard%20Reference&sort=r&max=1&offset=0" \
-                          "&api_key=" + self.api_key
-        self.nutrition_url = "/V2/reports?type=b&format=json&api_key=" + self.api_key
+                          "&api_key=" + self.api_key3
+        self.nutrition_url = "/V2/reports?type=b&format=json&api_key=" + self.api_key3
         self.energyLevels = []
         self.fatLevels = []
         self.sugarLevels = []
@@ -36,11 +37,13 @@ class FoodDatabaseRequests:
         request_url = self.url + self.search_url + "&q=" + new_ing
         response = requests.post(request_url)
         parsed_response = json.loads(response.text)
-        # print(parsed_response)
+        print(parsed_response)
         if "errors" in parsed_response and ingredient == new_ing:
             return self.getIngredientDbNumber(ingredient, self.getTopKAlternative(ingredient))
         else:
             if new_ing == "":
+                return {ingredient: 100}
+            if "errors" in parsed_response:
                 return {ingredient: 100}
         ndbno = parsed_response["list"]["item"][0]["ndbno"]
         return self.getNutritionValues(ndbno, ingredient)
@@ -55,9 +58,13 @@ class FoodDatabaseRequests:
             return ""
         newIngredient = ""
         for word in list(reversed(ingAsList)):
-            if word in self.topKIngredients:
-                newIngredient = word
-                break
+            for ing in self.topKIngredients:
+                if word in ing.split(' ') and ingredient != ing:
+                    newIngredient = ing
+                    break
+            else:
+                continue
+            break
         return newIngredient
 
     def getNutritionValues(self, db_number, ingredient):
@@ -119,8 +126,12 @@ def doRequests(index):
 
 if __name__ == "__main__":
     foodRequest = FoodDatabaseRequests()
-    print(foodRequest.getIngredientDbNumber("spice rub", "spice rub"))
+    #print(foodRequest.getIngredientDbNumber("spice rub", "spice rub"))
+    #print(foodRequest.getTopKAlternative("pepper flake"))
     #ingList = foodRequest.parseCsvFile("topKIngredients.csv")
+    print(foodRequest.getIngredientDbNumber("cooked ham", "cooked ham"))
+
+    #print(ingList[71])
     #index = 0
     #while index < 4000:
     #    doRequests(index)
